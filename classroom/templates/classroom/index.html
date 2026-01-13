@@ -1,0 +1,171 @@
+<!--
+RaiseHand Lite - Landing Page
+
+Premium landing page with room creation and joining functionality.
+Modern dark theme with animated elements.
+-->
+{% extends 'classroom/base.html' %}
+
+{% block title %}RaiseHand Lite - Real-time Classroom Interaction{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col items-center justify-center px-4">
+    <!-- Logo & Hero -->
+    <div class="text-center mb-12 animate-fade-in">
+        <!-- Animated Hand Icon -->
+        <div class="relative inline-block mb-6">
+            <div
+                class="w-24 h-24 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                <svg class="w-12 h-12 text-white animate-bounce-gentle" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
+                    </path>
+                </svg>
+            </div>
+            <div
+                class="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-400 rounded-full flex items-center justify-center shadow-lg">
+                <span class="text-white text-xs font-bold">LIVE</span>
+            </div>
+        </div>
+
+        <h1 class="text-5xl md:text-6xl font-extrabold mb-4">
+            <span class="gradient-text">RaiseHand</span>
+            <span class="text-white"> Lite</span>
+        </h1>
+        <p class="text-xl text-gray-300 max-w-md mx-auto">
+            Real-time student-teacher interaction for modern classrooms
+        </p>
+    </div>
+
+    <!-- Room Join Card -->
+    <div class="glass-card rounded-2xl p-8 w-full max-w-md animate-slide-up">
+        <h2 class="text-2xl font-semibold text-center mb-6">Join a Classroom</h2>
+
+        <form id="joinForm" class="space-y-5">
+            <!-- Name Input -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Your Name</label>
+                <input type="text" id="userName" required placeholder="Enter your name"
+                    class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-500 text-white">
+            </div>
+
+            <!-- Room Code Input -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Room Code</label>
+                <input type="text" id="roomCode" required placeholder="e.g., classroom1"
+                    class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-500 text-white">
+            </div>
+
+            <!-- Role Selection -->
+            <div class="grid grid-cols-2 gap-4">
+                <button type="button" onclick="joinAs('student')"
+                    class="group relative px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-indigo-500/25">
+                    <div class="flex flex-col items-center">
+                        <svg class="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                            </path>
+                        </svg>
+                        <span>Student</span>
+                    </div>
+                </button>
+
+                <button type="button" onclick="joinAs('teacher')"
+                    class="group relative px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-purple-500/25">
+                    <div class="flex flex-col items-center">
+                        <svg class="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z">
+                            </path>
+                        </svg>
+                        <span>Teacher</span>
+                    </div>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Features -->
+    <div class="mt-12 grid grid-cols-3 gap-8 max-w-2xl animate-fade-in" style="animation-delay: 0.3s;">
+        <div class="text-center">
+            <div class="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <h3 class="text-sm font-medium text-white">Real-time</h3>
+            <p class="text-xs text-gray-400">Instant updates</p>
+        </div>
+
+        <div class="text-center">
+            <div class="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="text-sm font-medium text-white">Multiple Users</h3>
+            <p class="text-xs text-gray-400">Concurrent support</p>
+        </div>
+
+        <div class="text-center">
+            <div class="w-12 h-12 bg-pink-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="text-sm font-medium text-white">Secure</h3>
+            <p class="text-xs text-gray-400">WebSocket based</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="absolute bottom-4 text-center text-gray-500 text-sm">
+        Built with Django Channels & WebSockets
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Join room as student or teacher
+    function joinAs(role) {
+        const name = document.getElementById('userName').value.trim();
+        const room = document.getElementById('roomCode').value.trim();
+
+        if (!name) {
+            showToast('Please enter your name', 'warning');
+            document.getElementById('userName').focus();
+            return;
+        }
+
+        if (!room) {
+            showToast('Please enter a room code', 'warning');
+            document.getElementById('roomCode').focus();
+            return;
+        }
+
+        // Redirect to appropriate page
+        const url = role === 'teacher'
+            ? `/teacher/${room}/?name=${encodeURIComponent(name)}`
+            : `/student/${room}/?name=${encodeURIComponent(name)}`;
+
+        window.location.href = url;
+    }
+
+    // Enter key support
+    document.getElementById('joinForm').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            joinAs('student'); // Default to student
+        }
+    });
+</script>
+{% endblock %}

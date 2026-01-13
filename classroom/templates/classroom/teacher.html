@@ -1,0 +1,600 @@
+<!--
+RaiseHand Lite - Teacher Dashboard
+
+This is the teacher-facing page where teachers can:
+1. See all students who have raised their hands in real-time
+2. Acknowledge/dismiss raised hands
+3. View the count of pending hands
+4. Send messages to all students (broadcast)
+5. Chat with students in real-time
+
+WebSocket Connection:
+- Connects to ws://host/ws/classroom/<room_name>/
+- Receives: {"type": "hand_raised", "student": "name"}
+- Sends: {"type": "acknowledge_hand", "student": "name"}
+- Sends: {"type": "send_message", "message": "text", "sender": "name"}
+-->
+{% extends 'classroom/base.html' %}
+
+{% block title %}Teacher Dashboard - {{ room_name }} | RaiseHand Lite{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col">
+    <!-- Header -->
+    <header class="glass-card border-b border-white/10 px-6 py-4">
+        <div class="flex items-center justify-between max-w-7xl mx-auto">
+            <div class="flex items-center gap-4">
+                <!-- Back to home -->
+                <a href="/" class="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+
+                <div>
+                    <h1 class="text-xl font-semibold">
+                        <span class="gradient-text">Teacher Dashboard</span>
+                    </h1>
+                    <p class="text-sm text-gray-400">
+                        Room: <span class="text-white font-medium">{{ room_name }}</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <!-- Hand counter -->
+                <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl">
+                    <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11">
+                        </path>
+                    </svg>
+                    <span id="handCount" class="text-lg font-bold text-white">0</span>
+                    <span class="text-sm text-gray-400">raised</span>
+                </div>
+
+                <!-- Connection Status -->
+                <div class="flex items-center gap-2">
+                    <div id="connection-status" class="w-3 h-3 bg-amber-400 rounded-full animate-pulse"></div>
+                    <span id="connection-text" class="text-sm text-gray-400">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content - Split View -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Left Side - Raised Hands -->
+        <div class="flex-1 overflow-hidden px-6 py-6">
+            <div class="max-w-4xl mx-auto h-full flex flex-col">
+                <!-- Section Title -->
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-300">
+                        Students with Raised Hands
+                    </h2>
+
+                    <!-- Clear All Button -->
+                    <button id="clearAllBtn" onclick="acknowledgeAll()"
+                        class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden">
+                        Dismiss All
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="flex-1 flex flex-col items-center justify-center animate-fade-in">
+                    <div class="w-24 h-24 bg-gray-800/50 rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                            </path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-400 mb-2">No Hands Raised</h3>
+                    <p class="text-gray-500 text-center text-sm max-w-xs">
+                        When students raise their hands, they will appear here
+                    </p>
+                </div>
+
+                <!-- Raised Hands Grid -->
+                <div id="handsContainer" class="flex-1 overflow-y-auto hidden">
+                    <div id="handsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Hand cards will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Chat -->
+        <div class="w-96 flex flex-col bg-black/20 border-l border-white/10">
+            <!-- Chat Header -->
+            <div class="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+                    </path>
+                </svg>
+                <h3 class="font-semibold text-white">Broadcast to Class</h3>
+                <span id="messageCount" class="ml-auto text-xs text-gray-500">0 messages</span>
+            </div>
+
+            <!-- Quick Broadcast Buttons -->
+            <div class="px-4 py-3 border-b border-white/10 flex flex-wrap gap-2">
+                <button onclick="quickMessage('Please quiet down')"
+                    class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-xs font-medium transition-colors">
+                    🤫 Quiet Down
+                </button>
+                <button onclick="quickMessage('Good question!')"
+                    class="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-xs font-medium transition-colors">
+                    👍 Good Question
+                </button>
+                <button onclick="quickMessage('Please wait')"
+                    class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-xs font-medium transition-colors">
+                    ⏳ Please Wait
+                </button>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Welcome message -->
+                <div class="text-center text-xs text-gray-500 py-2">
+                    Send messages to all students in real-time
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="p-4 border-t border-white/10">
+                <form id="chatForm" onsubmit="sendMessage(event)" class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="Broadcast message to class..." autocomplete="off"
+                        class="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 placeholder-gray-500 text-white text-sm">
+                    <button type="submit"
+                        class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-medium text-white text-sm transition-all duration-200 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z">
+                            </path>
+                        </svg>
+                        Broadcast
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Stats -->
+    <footer class="glass-card border-t border-white/10 px-6 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-400">
+            <div class="flex items-center gap-4">
+                <span>Session Active</span>
+                <span class="text-gray-600">•</span>
+                <span id="sessionTime">00:00:00</span>
+            </div>
+            <div>
+                <span id="totalAcknowledged">0</span> acknowledged this session
+            </div>
+        </div>
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // ==========================================================================
+    // Configuration and State
+    // ==========================================================================
+
+    const roomName = "{{ room_name }}";
+    const teacherName = "{{ teacher_name|default:'Teacher' }}";
+
+    // Track raised hands: { studentName: { timestamp, element } }
+    const raisedHands = new Map();
+    let totalAcknowledged = 0;
+    let messageCount = 0;
+    let socket = null;
+    let reconnectAttempts = 0;
+    let sessionStartTime = Date.now();
+
+    const MAX_RECONNECT_ATTEMPTS = 5;
+
+    // ==========================================================================
+    // WebSocket Connection
+    // ==========================================================================
+
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/classroom/${roomName}/?username=${encodeURIComponent(teacherName)}&type=teacher`;
+
+        console.log('Connecting to WebSocket:', wsUrl);
+        updateConnectionStatus('connecting');
+
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = function (e) {
+            console.log('WebSocket connected');
+            updateConnectionStatus('connected');
+            reconnectAttempts = 0;
+            showToast('Connected to classroom', 'success');
+        };
+
+        socket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            console.log('Message received:', data);
+            handleMessage(data);
+        };
+
+        socket.onclose = function (e) {
+            console.log('WebSocket disconnected');
+            updateConnectionStatus('disconnected');
+
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                showToast(`Reconnecting... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`, 'warning');
+                setTimeout(connectWebSocket, delay);
+            } else {
+                showToast('Connection lost. Please refresh.', 'error');
+            }
+        };
+
+        socket.onerror = function (e) {
+            console.error('WebSocket error:', e);
+        };
+    }
+
+    // ==========================================================================
+    // Message Handling
+    // ==========================================================================
+
+    function handleMessage(data) {
+        switch (data.type) {
+            case 'connection_established':
+                console.log('Connected as:', data.username);
+                break;
+
+            case 'hand_raised':
+                addRaisedHand(data.student);
+                break;
+
+            case 'hand_lowered':
+                removeRaisedHand(data.student, false);
+                break;
+
+            case 'hand_acknowledged':
+                // Remove hand if acknowledged by another teacher
+                if (data.acknowledged_by !== teacherName) {
+                    removeRaisedHand(data.student, true);
+                }
+                break;
+
+            case 'chat_message':
+                // Display chat message
+                addChatMessage(data.sender, data.message, data.sender_type, data.sender === teacherName);
+                break;
+
+            case 'pong':
+                console.log('Pong received');
+                break;
+        }
+    }
+
+    // ==========================================================================
+    // Hand Management
+    // ==========================================================================
+
+    function addRaisedHand(studentName) {
+        // Avoid duplicates
+        if (raisedHands.has(studentName)) {
+            console.log('Hand already raised:', studentName);
+            return;
+        }
+
+        const timestamp = Date.now();
+        const card = createHandCard(studentName, timestamp);
+
+        raisedHands.set(studentName, { timestamp, element: card });
+
+        // Add to grid with animation
+        const grid = document.getElementById('handsGrid');
+        grid.insertBefore(card, grid.firstChild);
+
+        // Play notification sound (optional)
+        playNotificationSound();
+
+        // Update UI
+        updateHandsUI();
+
+        // Show toast
+        showToast(`${studentName} raised their hand`, 'info');
+    }
+
+    function removeRaisedHand(studentName, acknowledged = false) {
+        const hand = raisedHands.get(studentName);
+        if (!hand) return;
+
+        // Animate out
+        hand.element.classList.add('scale-95', 'opacity-0');
+        hand.element.style.transition = 'all 0.3s ease-out';
+
+        setTimeout(() => {
+            hand.element.remove();
+            raisedHands.delete(studentName);
+            updateHandsUI();
+        }, 300);
+
+        if (acknowledged) {
+            totalAcknowledged++;
+            document.getElementById('totalAcknowledged').textContent = totalAcknowledged;
+        }
+    }
+
+    function acknowledgeHand(studentName) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            showToast('Not connected', 'error');
+            return;
+        }
+
+        // Send acknowledge message
+        socket.send(JSON.stringify({
+            type: 'acknowledge_hand',
+            student: studentName
+        }));
+
+        // Update local UI immediately
+        removeRaisedHand(studentName, true);
+
+        showToast(`Acknowledged ${studentName}`, 'success');
+    }
+
+    function acknowledgeAll() {
+        const students = Array.from(raisedHands.keys());
+        students.forEach(student => acknowledgeHand(student));
+    }
+
+    // ==========================================================================
+    // Chat Functions
+    // ==========================================================================
+
+    function sendMessage(event) {
+        event.preventDefault();
+
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+
+        if (!message) return;
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            showToast('Not connected to server', 'error');
+            return;
+        }
+
+        // Send message to server
+        socket.send(JSON.stringify({
+            type: 'send_message',
+            message: message,
+            sender: teacherName,
+            sender_type: 'teacher'
+        }));
+
+        // Clear input
+        input.value = '';
+    }
+
+    function quickMessage(message) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            showToast('Not connected to server', 'error');
+            return;
+        }
+
+        // Send quick message
+        socket.send(JSON.stringify({
+            type: 'send_message',
+            message: message,
+            sender: teacherName,
+            sender_type: 'teacher'
+        }));
+
+        showToast('Message sent to class', 'success');
+    }
+
+    function addChatMessage(sender, message, senderType, isOwn) {
+        const container = document.getElementById('chatMessages');
+        const messageEl = document.createElement('div');
+
+        const isTeacher = senderType === 'teacher';
+
+        messageEl.className = `animate-slide-up ${isOwn ? 'ml-8' : 'mr-8'}`;
+        messageEl.innerHTML = `
+            <div class="flex items-start gap-2 ${isOwn ? 'flex-row-reverse' : ''}">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isTeacher ? 'bg-gradient-to-br from-purple-500 to-pink-500' : 'bg-gradient-to-br from-indigo-500 to-blue-500'} text-white">
+                    ${sender.charAt(0).toUpperCase()}
+                </div>
+                <div class="${isOwn ? 'bg-purple-600/50' : 'bg-white/5'} rounded-xl px-3 py-2 max-w-[220px]">
+                    <div class="flex items-center gap-1 mb-1">
+                        <span class="text-xs font-medium ${isTeacher ? 'text-purple-300' : 'text-gray-400'}">${escapeHtml(sender)}</span>
+                        ${!isTeacher ? '<span class="text-[10px] bg-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded">Student</span>' : ''}
+                    </div>
+                    <p class="text-sm text-white break-words">${escapeHtml(message)}</p>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(messageEl);
+        container.scrollTop = container.scrollHeight;
+
+        // Update message count
+        messageCount++;
+        document.getElementById('messageCount').textContent = `${messageCount} messages`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==========================================================================
+    // UI Components
+    // ==========================================================================
+
+    function createHandCard(studentName, timestamp) {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-xl p-4 animate-slide-up transform transition-all duration-300 hover:scale-102 hover:bg-white/10';
+        card.id = `hand-${studentName.replace(/\s+/g, '-')}`;
+
+        card.innerHTML = `
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <!-- Avatar -->
+                    <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg animate-bounce-gentle">
+                        ${studentName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-white">${escapeHtml(studentName)}</h3>
+                        <p class="text-xs text-gray-400">
+                            <span class="timer" data-timestamp="${timestamp}">Just now</span>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Raised Hand Icon -->
+                <div class="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Action Button -->
+            <button 
+                onclick="acknowledgeHand('${escapeHtml(studentName)}')"
+                class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-lg font-medium text-white text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Acknowledge
+            </button>
+        `;
+
+        return card;
+    }
+
+    function updateHandsUI() {
+        const count = raisedHands.size;
+        const countEl = document.getElementById('handCount');
+        const emptyState = document.getElementById('emptyState');
+        const handsContainer = document.getElementById('handsContainer');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+
+        // Update count with animation
+        countEl.textContent = count;
+
+        if (count > 0) {
+            countEl.classList.add('text-amber-400');
+            emptyState.classList.add('hidden');
+            handsContainer.classList.remove('hidden');
+            clearAllBtn.classList.remove('hidden');
+        } else {
+            countEl.classList.remove('text-amber-400');
+            emptyState.classList.remove('hidden');
+            handsContainer.classList.add('hidden');
+            clearAllBtn.classList.add('hidden');
+        }
+    }
+
+    function updateConnectionStatus(status) {
+        const indicator = document.getElementById('connection-status');
+        const text = document.getElementById('connection-text');
+
+        if (status === 'connected') {
+            indicator.className = 'w-3 h-3 bg-emerald-400 rounded-full';
+            text.textContent = 'Live';
+            text.className = 'text-sm text-emerald-400';
+        } else if (status === 'connecting') {
+            indicator.className = 'w-3 h-3 bg-amber-400 rounded-full animate-pulse';
+            text.textContent = 'Connecting...';
+            text.className = 'text-sm text-amber-400';
+        } else {
+            indicator.className = 'w-3 h-3 bg-red-400 rounded-full animate-pulse';
+            text.textContent = 'Disconnected';
+            text.className = 'text-sm text-red-400';
+        }
+    }
+
+    // ==========================================================================
+    // Utility Functions
+    // ==========================================================================
+
+    function playNotificationSound() {
+        // Create a simple beep sound using Web Audio API
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.1;
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        } catch (e) {
+            console.log('Audio not available');
+        }
+    }
+
+    function formatTime(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        return [
+            hours.toString().padStart(2, '0'),
+            (minutes % 60).toString().padStart(2, '0'),
+            (seconds % 60).toString().padStart(2, '0')
+        ].join(':');
+    }
+
+    function formatRelativeTime(timestamp) {
+        const diff = Date.now() - timestamp;
+        const seconds = Math.floor(diff / 1000);
+
+        if (seconds < 5) return 'Just now';
+        if (seconds < 60) return `${seconds}s ago`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        return `${Math.floor(seconds / 3600)}h ago`;
+    }
+
+    function updateTimers() {
+        // Update session time
+        document.getElementById('sessionTime').textContent = formatTime(Date.now() - sessionStartTime);
+
+        // Update individual timers
+        document.querySelectorAll('.timer').forEach(timer => {
+            const timestamp = parseInt(timer.dataset.timestamp);
+            timer.textContent = formatRelativeTime(timestamp);
+        });
+    }
+
+    // ==========================================================================
+    // Initialization
+    // ==========================================================================
+
+    document.addEventListener('DOMContentLoaded', function () {
+        connectWebSocket();
+
+        // Update timers every second
+        setInterval(updateTimers, 1000);
+
+        // Keep-alive ping
+        setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+    });
+</script>
+{% endblock %}
