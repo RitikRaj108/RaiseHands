@@ -119,5 +119,3 @@ raisehand-lite/
 
 ---
 
-If you'd like, I can also: wire Redis into `docker-compose.yml`, add a `Procfile` for deployment, or run the project locally and verify WebSocket events—tell me which next.
-This project is provided as-is; add an appropriate LICENSE file if you plan to reuse or distribute it.
