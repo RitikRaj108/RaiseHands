@@ -1,3 +1,130 @@
+# RaiseHands
+
+Project README
+**RaiseHands**
+
+A minimal Django + Channels application that provides a realtime "raise hand" classroom feature so teachers and students can interact during live sessions.
+
+**Features**
+
+- Realtime raise-hand notifications using Django Channels and WebSockets.
+
+- Separate teacher and student views.
+
+- Simple routing and consumer structure for easy extension.
+
+**Tech Stack**
+
+- Python 3.8+ (or compatible)
+
+- Django
+
+- Django Channels (ASGI)
+
+- Redis (optional, recommended for production / channel layer)
+
+**Repository layout**
+
+- `manage.py` — Django management entrypoint
+
+- `requirements.txt` — Python dependencies
+
+- `docker-compose.yml` — optional Docker services (e.g., Redis + app)
+
+- `raisehand_project/` — Django project (ASGI, settings, urls)
+
+- `classroom/` — app containing views, consumers, templates and routing
+
+Requirements
+-----------
+
+Install Python dependencies (recommended in a virtual environment):
+
+```powershell
+
+python -m venv venv
+
+.\venv\Scripts\Activate.ps1
+
+pip install -r requirements.txt
+
+Or on macOS / Linux:
+
+```bash
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+Local development (Django runserver)
+----------------------------------
+
+1. Apply migrations and create a superuser:
+
+```powershell
+
+python manage.py migrate
+
+python manage.py createsuperuser
+
+2. Run the development server (ASGI server enabled via `asgi.py`):
+
+```powershell
+
+python manage.py runserver
+
+```
+
+3. Open a browser at `http://127.0.0.1:8000/` to view the app.
+
+Using Docker (optional)
+-----------------------
+
+If you prefer Docker and `docker-compose`, start the services with:
+
+```powershell
+
+docker-compose up --build
+
+```
+
+This will start the application and any configured services (for example, Redis). Adjust your `docker-compose.yml` and settings as needed for production.
+
+Notes on Channels / Production
+------------------------------
+
+- For production use, configure a persistent channel layer (Redis) and run an ASGI server such as Daphne or Uvicorn with workers.
+
+- Ensure static files are collected and served (e.g., via WhiteNoise or a dedicated static server) and DEBUG=False in production settings.
+
+Development tips
+----------------
+
+- Templates are in `classroom/templates/classroom/` (teacher, student, index pages).
+
+- WebSocket consumers are in `classroom/consumers.py` and routing is in `classroom/routing.py` and `raisehand_project/asgi.py`.
+
+- To add new realtime features, extend the consumer methods and update the frontend JS to send/receive JSON messages.
+
+Contributing
+------------
+
+1. Fork the repo and create a feature branch.
+
+2. Run the app locally and add tests where appropriate.
+
+3. Open a pull request describing the change.
+
+License
+-------
+
+This project is provided as-is; add an appropriate LICENSE file if you plan to reuse or distribute it.
+
+Questions
+---------
+If you want, I can: run the project locally, add a Dockerfile, wire Redis in `docker-compose.yml`, or add a short quickstart script. Tell me which you'd like next.
 # 🙋‍♂️ RaiseHand Lite
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
